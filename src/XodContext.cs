@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-
-namespace Xod
+﻿namespace Xod
 {
     ///<summary>
     ///Xml based relational OOP database
@@ -21,8 +17,6 @@ namespace Xod
             this.engine = engine;
         }
 
-
-        #region IXodContext Implementation
 
         public event EventHandler<TriggerEventArgs> BeforeAction
         {
@@ -208,8 +202,5 @@ namespace Xod
         {
             this.engine.Dispose();
         }
-
-        #endregion
-
     }
 }

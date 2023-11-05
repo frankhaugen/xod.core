@@ -1,6 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-namespace Xod
+﻿namespace Xod
 {
     public interface IXodEngine: IDisposable
     {

@@ -1,8 +1,4 @@
-﻿using System;
-using System.IO;
-using System.Linq;
-
-namespace Xod.Helpers
+﻿namespace Xod.Helpers
 {
     public class XodSecurityService : Xod.Infra.IXodSecurityService
     {

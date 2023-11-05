@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Xod
+﻿namespace Xod
 {
     [AttributeUsage(AttributeTargets.Property, AllowMultiple = true)]
     public class ForeignKeyAttribute : Attribute

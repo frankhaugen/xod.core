@@ -1,6 +1,4 @@
-﻿using System;
-
-namespace Xod
+﻿namespace Xod
 {
     public class RequiredPropertyException : Exception
     {

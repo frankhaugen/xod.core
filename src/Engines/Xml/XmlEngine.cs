@@ -1,11 +1,7 @@
 ﻿using Xod.Helpers;
 using Xod.Infra;
 using Xod.Services;
-using System;
 using System.Collections;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
 using System.Reflection;
 using System.Xml.Linq;
 
@@ -21,7 +17,6 @@ namespace Xod.Engines.Xml
         string root = null;
         string path = null;
 
-        //services
         IOService ioService = null;
         IXodSecurityService securityService = null;
         PropertyService propertyService = null;
@@ -74,7 +69,6 @@ namespace Xod.Engines.Xml
             }
 
 
-            //services
             this.propertyService = new PropertyService();
             this.propertyService.LoadType(typeof(Table));
 
@@ -89,7 +83,6 @@ namespace Xod.Engines.Xml
             };
 
 
-            //open or create database main file
             string databaseFile = System.IO.Path.GetFileName(path);
             XFile xodFile = this.ioService.OpenFileOrCreate<Database>(databaseFile, !options.InitialCreate, options.InitialCreate);
             if (xodFile == null)
@@ -97,7 +90,6 @@ namespace Xod.Engines.Xml
             else
                 this.path = xodFile.Path;
 
-            //services
             this.itemsCacheService = new ItemsCacheService(path);
             this.exceptionService = new ExceptionService(path);
 
@@ -114,22 +106,6 @@ namespace Xod.Engines.Xml
 
             this.LazyLoad = options.LazyLoad;
             this.LazyLoadParent = options.LazyLoadParent;
-            //Compressed = defaultOptions.Compressed;
-
-
-            //clear cached file on security state changes
-            //this.securityService.Changed += (sender, e) =>
-            //{
-            //    foreach (var f in this.cachedFiles.ToArray())
-            //    {
-            //        f.Dispose();
-            //        this.cachedFiles.Remove(f);
-            //    }
-
-            //    GC.Collect();
-            //    GC.WaitForPendingFinalizers();
-            //};
-
         }
 
         private string Create(Type type, object item, bool lazyLoad = false, ReadWriteTrack writeTrack = null)
@@ -151,75 +127,13 @@ namespace Xod.Engines.Xml
             if (trigger.Cancel)
                 return null;
 
-            //int guidKeys = 0;
-            //int numericKeys = 0;
 
-
-            //Dictionary<string, dynamic> lastSeeds = LastSeeds(type);
-
-            //set auto number values
             Dictionary<string, dynamic> autonumbers = this.autonumberService.Autonumber(type, item);
-
-            //Dictionary<string, string> autonumbers = new Dictionary<string, string>();
-            //List<string> autonumberedProps = new List<string>();
-            //var autonumberProps = this.propertyService.Properties(type.FullName).Where(s => s.IsAutonumber);
-            //foreach (var autonumberProp in autonumberProps)
-            //{
-            //    if (!ValueHelper.IsNumeric(autonumberProp.PropertyType) && !autonumberProp.PropertyType.Equals(typeof(Guid)))
-            //        exceptionService.Throw(new AutonumberDataTypeException());
-
-            //    if (ValueHelper.DefaultOf(autonumberProp.PropertyType).Equals(autonumberProp.Property.GetValue(item)))
-            //    {
-            //        dynamic next = null;
-            //        if (!autonumberProp.PropertyType.Equals(typeof(Guid)))
-            //        {
-            //            next = NextNumber(type, autonumberProp);
-            //            autonumberProp.Property.SetValue(item, next);
-            //            numericKeys++;
-            //            autonumberedProps.Add(autonumberProp.Property.Name);
-            //            //seeds.Add(autoNumberProp.Property.Name, nn.ToString());
-            //        }
-            //        else
-            //        {
-            //            next = Guid.NewGuid();
-            //            autonumberProp.Property.SetValue(item, next);
-            //            guidKeys++;
-            //        }
-            //        autonumbers.Add(autonumberProp.PropertyName, next);
-            //    }
-            //}
-
-            ////check if primary key properties has been auto numbered
-            //bool autoNumbered = true;
-            //var primPropAtts = this.propertyService.Properties(type.FullName).Where(s => s.IsPrimaryKey);
-            //foreach (var primPropAtt in primPropAtts)
-            //    if (!autoNumberedProps.Contains(primPropAtt.PropertyName))
-            //    {
-            //        autoNumbered = false;
-            //        break;
-            //    }
-
-            ////no ReservedKeyTest for Guid
-            //if (guidKeys != 1)
-            //    ReservedKeyTest(type, item);
-
-            //var primaryKeysProps = this.propertyService.Properties(type.FullName).Where(s => s.IsPrimaryKey).Select(s => s.PropertyName);
-            //var uniqueKeysProps = this.propertyService.Properties(type.FullName).Where(s => s.IsUnique).Select(s => s.PropertyName);
-
-            //if (uniqueKeysProps.Any() || primaryKeysProps.Any())
-            //    ReservedKeyTest(type, item, primaryKeysProps, uniqueKeysProps);
 
             ReservedKeyTest(type, item);
 
-            //var reserved = (guidKeys != 1) ? ReservedPropertyType.None : ReservedKeyTest(type, item);
-            //if (!autoNumbered && reserved == ReservedPropertyType.Primary)
-            //    exceptionService.Throw(new ReservedPrimaryKeyException());
-            //else if (reserved == ReservedPropertyType.Unique)
-            //    exceptionService.Throw(new ReservedUniqueKeyException());
-
 
             string refCode = AddToPage(type, item, autonumbers, lazyLoad, writeTrack);
-            //string refCode = AddToPage(type, item, seeds, lazyLoad, writeTrack);
 
             if (null != AfterAction)
                 AfterAction(this, trigger);
@@ -243,28 +157,6 @@ namespace Xod.Engines.Xml
             {
                 XFile pageFile = this.ioService.OpenPageOrCreate(tableFile);
 
-                //move this code to ioService
-                //XElement page = tableFile.Pages().FirstOrDefault(delegate(XElement s)
-                //{
-                //    XAttribute fullAtt = s.Attribute("full");
-                //    return fullAtt == null || fullAtt.Value != "true";
-                //});
-                //string pageFileName = null;
-                //if (page == null)
-                //{
-                //    pageFileName = string.Format("{0}.{1}", ValueHelper.PickCode(), "xpag");
-                //    page = new XElement("Page", new XAttribute("file", pageFileName));
-                //    page.Add(new XAttribute("full", false));
-                //    tableFile.Root().Element("Pages").Add(page);
-                //}
-                //else
-                //{
-                //    pageFileName = page.Attribute("file").Value;
-                //}
-
-                //this.indexService.Index(type, autonumbers, page);
-                //XFile pageFile = this.ioService.OpenFileOrCreate(pageFileName, typeof(TablePage));
-
                 if (pageFile != null)
                 {
                     string pageFileName = System.IO.Path.GetFileName(pageFile.Path);
@@ -286,7 +178,6 @@ namespace Xod.Engines.Xml
                         XElement re = new XElement("Row", new XAttribute("code", itemCode), xItem);
                         pageFile = this.ioService.OpenFileOrCreate(pageFileName, typeof(TablePage));
                         pageFile.Root().Element("Rows").Add(re);
-                        //if (pageFile.Size() >= PAGE_SIZE)
                         if (this.ioService.Size(pageFile.Path) >= PAGE_SIZE)
                         {
                             var fullPage = tableFile.Pages()
@@ -296,28 +187,8 @@ namespace Xod.Engines.Xml
                                 fullPage.Attribute("full").Value = "true";
                         }
                         this.ioService.Save(pageFile);
-                        //pageFile.Save();
-
-                        ////record last autonumber values
-                        //var xSeed = tableFile.Root().Element("Seed");
-                        //if (xSeed == null)
-                        //    xSeed = new XElement("Seed");
-
-                        //if(seeds != null) {
-                        //    foreach (var seed in seeds)
-                        //    {
-                        //        xSeed.Add(new XAttribute("property", seed.Key));
-                        //        xSeed.Add(new XAttribute("value", seed.Value));
-                        //    }
-
-                        //    if (tableFile.Root().Element("Seed") == null)
-                        //        tableFile.Root().Add(xSeed);
-                        //    else
-                        //        tableFile.Root().Element("Seed").ReplaceNodes(xSeed.Elements());
-                        //}
                     }
                     this.ioService.Save(tableFile);
-                    //tableFile.Save();
                 }
             }
             return itemPath;
@@ -334,7 +205,6 @@ namespace Xod.Engines.Xml
             XElement xItem = new XElement(type.Name);
             XDocument itemFile = new XDocument(xItem);
 
-            //all public properties
             IEnumerable<PropertyInfoItem> props = this.propertyService.Properties(type.FullName).Where(s => !s.IsNotMapped).OrderByDescending(s =>
                 s.PropertyType != null && (
                 s.PropertyType.GetTypeInfo().IsValueType ||
@@ -363,18 +233,15 @@ namespace Xod.Engines.Xml
         private XElement WriteProperty(Type type, object item, XElement xItem, PropertyInfoItem prop, bool lazyLoad = false, ReadWriteTrack writeTrack = null)
         {
             object value = prop.Property.GetValue(item);
-            //properties marked as required bu have null value will raise an exception
             if (prop.IsRequired && (null == value || value.Equals(ValueHelper.DefaultOf(prop.PropertyType))))
             {
                 exceptionService.Throw(new RequiredPropertyException());
-                //Rollback();
             }
             XElement propertyElement = null;
 
             if (prop.IsGenericType && null != value)
                 prop.PropertyType = value.GetActualType();
 
-            //for string, primitive, or enum values
             if (prop.PropertyType.GetTypeInfo().IsValueType || prop.PropertyType == typeof(string))
             {
                 if (null == value || value.Equals(ValueHelper.DefaultOf(prop.PropertyType)))
@@ -401,9 +268,8 @@ namespace Xod.Engines.Xml
                     xItem.Add(propertyElement);
                 }
             }
-            //for array and generic collection values
             else if ((prop.PropertyType.IsArray && prop.PropertyType.GetArrayRank() == 1) ||
-                (null != prop.PropertyType.GetTypeInfo().GetInterface("ICollection")))
+                     (null != prop.PropertyType.GetTypeInfo().GetInterface("ICollection")))
             {
                 if (null == value)
                     return null;
@@ -426,7 +292,6 @@ namespace Xod.Engines.Xml
                     new XAttribute("collType", collType)
                 });
 
-                //collection that contains string, primitive, datetime or enum
                 if (itmType.GetTypeInfo().IsValueType || itmType == typeof(string))
                 {
                     IEnumerable items = null;
@@ -448,7 +313,6 @@ namespace Xod.Engines.Xml
                         if (itm != null)
                             propertyElement.Add(new XElement(itmType.Name, itm));
                 }
-                //for collection reference type
                 else if (!lazyLoad)
                 {
                     if (null == value)
@@ -459,7 +323,6 @@ namespace Xod.Engines.Xml
                 }
                 xItem.Add(propertyElement);
             }
-            //for reference type values
             else if (!lazyLoad && prop.PropertyType.GetTypeInfo().IsClass)
             {
                 ParseReference(type, item, value, prop, xItem, writeTrack);
@@ -473,7 +336,6 @@ namespace Xod.Engines.Xml
             if (null == item)
                 return null;
 
-            //all public properties
             var props = selectedProps.Where(s => !s.IsNotMapped).OrderByDescending(s => s.PropertyType.GetTypeInfo().IsValueType || s.PropertyType == typeof(string) || s.PropertyType == typeof(DateTime));
             foreach (var prop in props)
             {
@@ -487,237 +349,8 @@ namespace Xod.Engines.Xml
             }
             return xItem;
         }
-        //private object Read(Type type, XElement row, bool lazyLoad = false, ReadWriteTrack track = null)
-        //{
-        //    lazyLoad = (lazyLoad) ? true : LazyLoad;
-        //    XElement element = row.Elements().FirstOrDefault();
-
-        //    if (type.Name != element.Name)
-        //        type = this.propertyService.RegisteredTypeByName(element.Name.LocalName);
-
-        //    bool parentIsLeaf = false;
-        //    if (null != track &&
-        //        null != track.Parent &&
-        //        RecursionError(track, track.Parent))
-        //    {
-        //        parentIsLeaf = true;
-        //        track = null;
-        //        lazyLoad = true;
-        //    }
-
-        //    object item = Activator.CreateInstance(type);
-        //    string itemCode = row.Attribute("code").Value;
-        //    Guid readId = Guid.NewGuid();
-
-        //    var props = this.propertyService.Properties(type.FullName).Where(s =>
-        //        !s.IsNotMapped).OrderByDescending(s =>
-        //        null != s.PropertyType && (
-        //        s.PropertyType.IsValueType ||
-        //        s.PropertyType == typeof(string) ||
-        //        s.PropertyType == typeof(DateTime)));
-
-        //    foreach (var prop in props)
-        //    {
-        //        if (prop.IsReadOnly)
-        //            continue;
-
-        //        XElement e = element.Element(prop.PropertyName);
-        //        if (e != null)
-        //        {
-        //            //parsing collection types
-        //            XAttribute isColl = e.Attribute("collType");
-        //            if (null != isColl)
-        //            {
-        //                string addRangeMethod = null;
-        //                Type itemType = null;
-        //                if (prop.PropertyType.IsArray)
-        //                {
-        //                    itemType = prop.PropertyType.GetElementType();
-        //                    addRangeMethod = "AddRangeFromString";
-        //                }
-        //                else
-        //                {
-        //                    itemType = prop.PropertyType.GetGenericArguments().FirstOrDefault();
-        //                    addRangeMethod = "AddRange";
-        //                }
-
-        //                if (null == itemType)
-        //                    continue;
-
-        //                Type[] typeArgs = { itemType };
-        //                var collType = typeof(List<>);
-        //                Type collGenType = collType.MakeGenericType(typeArgs);
-        //                dynamic coll = Activator.CreateInstance(collGenType);
-        //                object[] args = null;
-        //                var collElements = e.Elements(itemType.Name).Where(s => null != s).Select(s => s.Value).ToArray();
 
 
-        //                //extension method that adds range of elements with casting operation
-        //                MethodInfo mi = typeof(CollectionExtensions)
-        //                    .GetMethod(addRangeMethod)
-        //                    .MakeGenericMethod(new Type[] { itemType });
-
-        //                if (itemType.IsValueType || itemType == typeof(string))
-        //                {
-        //                    args = new object[] { coll, collElements };
-        //                    mi.Invoke(coll, args);
-
-        //                    if (!prop.PropertyType.IsArray)
-        //                        prop.Property.SetValue(item, coll);
-        //                    else
-        //                        prop.Property.SetValue(item, coll.ToArray());
-        //                }
-        //                //ignore reference collection and array type if lazyLoad is true
-        //                else if (!lazyLoad)
-        //                {
-        //                    var collCodes = collElements.Select(s => GetRawData(s)).Where(s => null != s);
-        //                    int i = 0;
-        //                    var collQuery = collCodes.Select(delegate(XElement s)
-        //                    {
-        //                        i++;
-        //                        XAttribute rowCode = s.Attribute("code");
-        //                        if (null == rowCode)
-        //                            return null;
-
-        //                        string childCode = string.Format("{0}.{1}", this.ioService.GetItemPage(itemType, rowCode.Value), rowCode.Value);
-        //                        object obj = null;
-
-        //                        obj = this.itemsCacheService.Get(itemType, childCode, lazyLoad);
-        //                        if (null != obj)
-        //                            return obj;
-
-        //                        ReadWriteTrack childTrack = new ReadWriteTrack()
-        //                        {
-        //                            Code = childCode,
-        //                            Type = itemType,
-        //                            Parent = track,
-        //                            ReadId = Guid.NewGuid(),
-        //                        };
-        //                        obj = Read(itemType, s, false, childTrack);
-
-        //                        return obj;
-        //                    }).Where(s => s != null);
-
-        //                    args = new object[] { coll, collQuery.ToArray() };
-        //                    mi.Invoke(coll, args);
-
-        //                    if (!prop.PropertyType.IsArray)
-        //                        prop.Property.SetValue(item, coll);
-        //                    else
-        //                        prop.Property.SetValue(item, coll.ToArray());
-        //                }
-        //            }
-        //            //parse non-collection/array types
-        //            else
-        //            {
-        //                object value = null;
-        //                string stringValue = string.Empty;
-
-        //                if (prop.ValuePosition == ValuePosition.Attribute)
-        //                {
-        //                    stringValue = element.Attribute(prop.PropertyName).Value;
-        //                    value = stringValue;
-        //                    prop.Property.SetValue(item, value);
-        //                }
-        //                else
-        //                {
-        //                    stringValue = element.Element(prop.PropertyName).Value;
-        //                    if (string.IsNullOrEmpty(stringValue))
-        //                        continue;
-
-        //                    if (prop.IsGenericType)
-        //                    {
-        //                        if (string.IsNullOrEmpty(prop.GenericTypeProperty))
-        //                        {
-        //                            string[] itemPath = stringValue.Split('.');
-        //                            if (itemPath.Length == 2)
-        //                                prop.PropertyType = this.ioService.GetPageType(itemPath[0]);
-        //                        }
-        //                        else
-        //                        {
-        //                            var genericProp = props.FirstOrDefault(s => s.PropertyName == prop.GenericTypeProperty);
-        //                            if (null != genericProp)
-        //                            {
-        //                                object genericPropValue = genericProp.Property.GetValue(item);
-        //                                if (null != genericPropValue)
-        //                                {
-        //                                    string genericPropName = genericProp.Property.GetValue(item).ToString();
-        //                                    var genericType = this.propertyService.RegisteredType(genericPropName);
-        //                                    if (null != genericType)
-        //                                        prop.PropertyType = genericType;
-        //                                }
-        //                            }
-        //                        }
-
-        //                        if (null == prop.PropertyType)
-        //                            exceptionService.Throw(new AnynomousTypeException());
-        //                    }
-
-        //                    value = ReadValue(prop, stringValue);
-
-        //                    if (null == value && !lazyLoad && prop.PropertyType.GetTypeInfo().IsClass)
-        //                    {
-        //                        object cachedItem = this.itemsCacheService.Get(prop.PropertyType, stringValue, lazyLoad);
-        //                        if (null == cachedItem)
-        //                        {
-
-        //                            ReadWriteTrack refTrack = new ReadWriteTrack()
-        //                            {
-        //                                Code = stringValue,
-        //                                Type = prop.PropertyType,
-        //                                Parent = track,
-        //                                ReadId = Guid.NewGuid(),
-        //                            };
-
-        //                            XElement xRefItem = GetRawData(stringValue);
-        //                            if (null != xRefItem)
-        //                            {
-        //                                value = Read(prop.PropertyType, xRefItem, false, refTrack);
-        //                            }
-        //                            else
-        //                            {
-        //                                Dictionary<string, object> localRefKeyValues = new Dictionary<string, object>();
-        //                                if (null != prop.ForeignKeys)
-        //                                    foreach (var foreignKeyAtt in prop.ForeignKeys)
-        //                                    {
-        //                                        PropertyInfo localKeyProp = prop.PropertyType.GetProperty(foreignKeyAtt.LocalProperty);
-        //                                        if (null != localKeyProp)
-        //                                            localRefKeyValues.Add(foreignKeyAtt.RemoteProperty, localKeyProp.GetValue(item));
-        //                                    }
-        //                                value = SelectItemsByExample(prop.PropertyType, PopulateItemProperties(prop.PropertyType, localRefKeyValues)).FirstOrDefault();
-        //                                //value = GetReferenceByProperties(prop.PropertyType, localRefKeyValues);
-        //                            }
-        //                        }
-        //                        else
-        //                            value = cachedItem;
-        //                    }
-
-        //                    if (value != null)
-        //                        prop.Property.SetValue(item, value);
-        //                }
-        //            }
-        //        }
-        //        else if (prop.DefaultValue != null && !prop.DefaultValue.Equals(ValueHelper.DefaultOf(prop.PropertyType)))
-        //            prop.Property.SetValue(item, prop.DefaultValue);
-        //    }
-
-        //    ItemCache cache = new ItemCache()
-        //    {
-        //        Type = type,
-        //        Code = itemCode,
-        //        Item = item,
-        //        LazyLoaded = lazyLoad,
-        //        ReadId = readId,
-        //        ParentIsLeaf = parentIsLeaf
-        //    };
-
-        //    if (track != null)
-        //        cache.ParentReadId = track.ReadId;
-
-        //    this.itemsCacheService.Add(cache);
-
-        //    return item;
-        //}
         private object Read(Type type, XElement row, string include = null, ReadWriteTrack track = null)
         {
             bool lazyLoad = include != "*" ? true : LazyLoad;
@@ -747,20 +380,11 @@ namespace Xod.Engines.Xml
             var props = this.propertyService.Properties(type.FullName).Where(s =>
                 !s.IsNotMapped && !s.IsReadOnly).OrderBy(s => s.TypeCategory).ToArray();
 
-            //var props = this.propertyService.Properties(type.FullName).Where(s =>
-            //    !s.IsNotMapped).OrderByDescending(s =>
-            //    null != s.PropertyType &&
-            //    (
-            //    s.PropertyType.IsValueType ||
-            //    s.PropertyType == typeof(string) ||
-            //    s.PropertyType == typeof(DateTime)));
-
             foreach (var prop in props)
             {
                 XElement e = element.Element(prop.PropertyName);
                 if (e != null)
                 {
-                    //parsing collection types
                     XAttribute isColl = e.Attribute("collType");
                     if (null != isColl)
                     {
@@ -788,7 +412,6 @@ namespace Xod.Engines.Xml
                         var collElements = e.Elements(itemType.Name).Where(s => null != s).Select(s => s.Value).ToArray();
 
 
-                        //extension method that adds range of elements with casting operation
                         MethodInfo mi = typeof(CollectionExtensions)
                             .GetMethod(addRangeMethod)
                             .MakeGenericMethod(new Type[] { itemType });
@@ -803,9 +426,7 @@ namespace Xod.Engines.Xml
                             else
                                 prop.Property.SetValue(item, coll.ToArray());
                         }
-                        //ignore reference collection and array type if lazyLoad is true
                         else if (include == "*" || includedRefProps.Contains(prop.PropertyName))
-                        //else if (!lazyLoad)
                         {
                             var collCodes = collElements.Select(s => GetRawData(s)).Where(s => null != s);
                             int i = 0;
@@ -820,7 +441,6 @@ namespace Xod.Engines.Xml
                                 object obj = null;
 
                                 obj = this.itemsCacheService.Get(itemType, rowCode.Value, lazyLoad, includedRefProps);
-                                //obj = this.itemsCacheService.Get(itemType, childCode, lazyLoad, includedRefProps);
                                 if (obj != null)
                                     return obj;
 
@@ -845,7 +465,6 @@ namespace Xod.Engines.Xml
                                 prop.Property.SetValue(item, coll.ToArray());
                         }
                     }
-                    //parse non-collection/array types
                     else
                     {
                         object value = null;
@@ -895,10 +514,9 @@ namespace Xod.Engines.Xml
 
                             value = ReadValue(prop, stringValue);
 
-                            //if (null == value && !lazyLoad && prop.PropertyType.GetTypeInfo().IsClass)
                             if (value == null && prop.PropertyType.GetTypeInfo().IsClass && (
-                                include == "*" || includedRefProps.Contains(prop.PropertyName)) && (
-                                !this.LazyLoadParent || prop.ReferenceType != PropertyReferenceType.Parent))
+                                    include == "*" || includedRefProps.Contains(prop.PropertyName)) && (
+                                    !this.LazyLoadParent || prop.ReferenceType != PropertyReferenceType.Parent))
                             {
                                 itemParts = stringValue.Split('.');
                                 if (itemParts.Length != 2)
@@ -906,7 +524,6 @@ namespace Xod.Engines.Xml
 
                                 object cachedItem = null;
                                 cachedItem = this.itemsCacheService.Get(prop.PropertyType, itemParts[1], lazyLoad, includedRefProps);
-                                //cachedItem = this.itemsCacheService.Get(prop.PropertyType, stringValue, lazyLoad, includedRefProps);
                                 if (cachedItem == null)
                                 {
                                     ReadWriteTrack refTrack = new ReadWriteTrack()
@@ -933,7 +550,6 @@ namespace Xod.Engines.Xml
                                                     localRefKeyValues.Add(foreignKeyAtt.RemoteProperty, localKeyProp.GetValue(item));
                                             }
                                         value = SelectItemsByExample(prop.PropertyType, PopulateItemProperties(prop.PropertyType, localRefKeyValues)).FirstOrDefault();
-                                        //value = GetReferenceByProperties(prop.PropertyType, localRefKeyValues);
                                     }
                                 }
                                 else
@@ -974,10 +590,8 @@ namespace Xod.Engines.Xml
             object value = null;
             TypeInfo ti = prop.PropertyType.GetTypeInfo();
 
-            //parse enum values
             if (prop.PropertyType == typeof(string))
                 value = stringValue;
-            //parse primitive, datetime values
             else if (ti.IsEnum)
                 value = Enum.Parse(prop.PropertyType, stringValue);
             else if (ti.IsPrimitive ||
@@ -1006,8 +620,6 @@ namespace Xod.Engines.Xml
                 return false;
 
             bool value = false;
-            //try
-            //{
             XRowTree rowTree = GetTree(type, item);
             if (null != rowTree)
             {
@@ -1041,12 +653,10 @@ namespace Xod.Engines.Xml
 
                 foreach (var row in rowTree.Rows)
                 {
-                    //check if it doesn't remove children .. I think it does
                     XAttribute rowCodeAtt = row.Attribute("code");
                     string itemCode = (null != rowCodeAtt && null != pageCode) ?
                         string.Format("{0}.{1}", pageCode, rowCodeAtt.Value) : "";
 
-                    //clear cached resources of this item and its related items
                     this.itemsCacheService.Clear(type, rowCodeAtt.Value);
 
                     ReadWriteTrack itemTrack = new ReadWriteTrack()
@@ -1083,10 +693,8 @@ namespace Xod.Engines.Xml
                         }
                     }
 
-                    //update only if there is a difference
                     if (!row.Element(type.Name).ElementEquals(xNewRow))
                     {
-                        //inforce cascade delete for complex reference and child items
                         Dictionary<Type, string> delItemsCode = new Dictionary<Type, string>();
                         var cascadeDelProps = props.Where(s => s.Cascade.HasFlag(CascadeOptions.Delete)).Select(s => s.PropertyName);
                         string[] delRefTypes = { "complex", "children" };
@@ -1123,13 +731,11 @@ namespace Xod.Engines.Xml
                                 continue;
 
                             object delRef = Read(delRefType, xDelRef);
-                            //object delRef = Read(delRefType, xDelRef, false);
                             Delete(delRefType, delRef);
                         }
 
                         row.ReplaceNodes(xNewRow);
 
-                        //Update all reference items, except complex collection!!
                         var propRefProps = props.Where(s =>
                             s.TypeCategory != PropertyTypeCategory.None &&
                             s.ReferenceType != PropertyReferenceType.Complex &&
@@ -1139,7 +745,6 @@ namespace Xod.Engines.Xml
                             object oldRefItem = propRefProp.Property.GetValue(item);
                             object newRefItem = propRefProp.Property.GetValue(newItem);
 
-                            //update parent object if this item is a child and this is property is parent-reference
                             if (propRefProp.ReferenceType == PropertyReferenceType.Parent)
                             {
                                 bool sameParent = true;
@@ -1216,13 +821,11 @@ namespace Xod.Engines.Xml
                                 }
                             }
 
-                            //reference items
                             if (propRefProp.TypeCategory == PropertyTypeCategory.Class)
                                 UpdateItem(propRefProp.PropertyType, oldRefItem, newRefItem, itemTrack);
-                            //collection reference items
                             else if (propRefProp.TypeCategory != PropertyTypeCategory.None &&
-                                propRefProp.TypeCategory != PropertyTypeCategory.ValueTypeArray &&
-                                propRefProp.TypeCategory != PropertyTypeCategory.ValueTypeCollection)
+                                     propRefProp.TypeCategory != PropertyTypeCategory.ValueTypeArray &&
+                                     propRefProp.TypeCategory != PropertyTypeCategory.ValueTypeCollection)
                             {
                                 Type childType = null;
                                 string collType = string.Empty;
@@ -1239,32 +842,21 @@ namespace Xod.Engines.Xml
                         }
                     }
 
-                    //add more functionality for:
-                    //3) testing validation roles like coupled parent
                     this.ioService.Save(rowTree.Page);
-                    //rowTree.Page.Save();
                 }
             }
-            //}
-            //catch
-            //{
-            //    value = false;
-            //}
 
             return value;
         }
 
-        //tags(xml-parsing)
         private XElement RemoveFromParent(Type childType, string childCode, PropertyInfoItem parentChildrenProp, object parent)
         {
             XElement item = null;
-            //object oldParent = GetRefItem(propRefProp.PropertyType, oldParentKeyValues);
             if (null != parent)
             {
                 XRow oldParentXRow = GetRow(parentChildrenProp.PropertyType, parent);
                 if (null != oldParentXRow)
                 {
-                    //PropertyInfoItem parentChildrenProp = null;
                     var parentChildrenProps = this.propertyService.Properties(parentChildrenProp.PropertyType.FullName).Where(s => s.CollectionItemType == childType && s.ReferenceType == PropertyReferenceType.Children);
 
                     foreach (var pcp in parentChildrenProps)
@@ -1276,18 +868,7 @@ namespace Xod.Engines.Xml
                             item = parentItemRef;
                             parentItemRef.Remove();
 
-                            //Full attribute should not be updated after turning true,
-                            //it's a forward process for indexing purposes
-
-                            //if (oldParentXRow.Page.Size() < PAGE_SIZE)
-                            //{
-                            //    XAttribute fullAtt = oldParentXRow.Page.Root().Attribute("full");
-                            //    if (null != fullAtt)
-                            //        fullAtt.Value = "false";
-                            //}
-
                             this.ioService.Save(oldParentXRow.Page);
-                            //oldParentXRow.Page.Save();
                             break;
                         }
                     }
@@ -1296,7 +877,6 @@ namespace Xod.Engines.Xml
             return item;
         }
 
-        //tags(xml-parsing)
         private void TransferToParent(Type childType, XElement child, string hostProp, Type parentType, object parent)
         {
             XRow newParentXRow = GetRow(parentType, parent);
@@ -1325,7 +905,6 @@ namespace Xod.Engines.Xml
 
                 newParentChildren.Add(child);
                 this.ioService.Save(newParentXRow.Page);
-                //newParentXRow.Page.Save();
             }
         }
 
@@ -1402,59 +981,6 @@ namespace Xod.Engines.Xml
             return values;
         }
 
-        //private void ReservedKeyTest(Type type, object item, string[] uniqueKeys = null)
-        //{
-        //    Dictionary<string, object> keyValues = GetPrimaryValues(type, item);
-        //    Dictionary<string, object> uniqueValues = ValueHelper.GetPropertyValues(type, item, uniqueKeys);
-        //    if (!keyValues.Any() && !uniqueValues.Any())
-        //        return;
-
-        //    var items = QueryFirst(type, delegate(dynamic s)
-        //    {
-        //        foreach (var keyValue in keyValues)
-        //        {
-        //            PropertyInfo primaryProp = type.GetProperty(keyValue.Key);
-        //            if (keyValue.Value.Equals(primaryProp.GetValue(s)))
-        //                exceptionService.Throw(new ReservedPrimaryKeyException());
-        //        }
-
-        //        foreach (var uniqueValue in uniqueValues)
-        //        {
-        //            PropertyInfo primaryProp = type.GetProperty(uniqueValue.Key);
-        //            if (uniqueValue.Value.Equals(primaryProp.GetValue(s)))
-        //                exceptionService.Throw(new ReservedUniqueKeyException());
-        //        }
-
-        //        return false;
-        //    }, true);
-        //}
-        //private void ReservedKeyTest(Type type, object item, IEnumerable<string> primaryKeys, IEnumerable<string> uniqueKeys)
-        //{
-        //    Dictionary<string, object> primaryValues = ValueHelper.GetPropertyValues(type, item, primaryKeys);
-        //    Dictionary<string, object> uniqueValues = ValueHelper.GetPropertyValues(type, item, uniqueKeys);
-        //    if (!primaryValues.Any() && !uniqueValues.Any())
-        //        return;
-
-        //    var items = FirstMatch(type, delegate(dynamic s)
-        //    {
-        //        foreach (var uniqueValue in uniqueValues)
-        //        {
-        //            PropertyInfo primaryProp = type.GetProperty(uniqueValue.Key);
-        //            if (uniqueValue.Value.Equals(primaryProp.GetValue(s)))
-        //                exceptionService.Throw(new ReservedUniqueKeyException());
-        //        }
-
-        //        foreach (var primaryValue in primaryValues)
-        //        {
-        //            PropertyInfo primaryProp = type.GetProperty(primaryValue.Key);
-        //            if (primaryValue.Value.Equals(primaryProp.GetValue(s)))
-        //                exceptionService.Throw(new ReservedPrimaryKeyException());
-        //        }
-
-        //        return false;
-        //    }, true);
-        //}
-
         private void ParseChildren(Type type, object item, Type childType, IEnumerable<object> children, PropertyInfoItem prop, XElement xProp, bool lazyLoad = false, ReadWriteTrack writeTrack = null)
         {
             if (prop.ReferenceType == PropertyReferenceType.Children)
@@ -1469,10 +995,6 @@ namespace Xod.Engines.Xml
                 {
                     foreach (var child in children)
                     {
-                        //object childParentPropValue = childParentProp.GetValue(child);
-                        //if (null != childParentPropValue && !childParentPropValue.Equals())
-                        //    exceptionService.Throw(new ReservedChildException());
-
                         if (null != childParentPropItem.ParentKeys)
                         {
                             foreach (var parentKeyPropAtt in childParentPropItem.ParentKeys)
@@ -1515,7 +1037,6 @@ namespace Xod.Engines.Xml
                 else
                 {
                     exceptionService.Throw(new MissingParentKeyException());
-                    //Rollback();
                 }
             }
             else
@@ -1548,7 +1069,7 @@ namespace Xod.Engines.Xml
             object refItem = null;
             if (null != itemPrimarySets && itemPrimarySets.Any())
             {
-                refItem = Query(type, delegate(object s)
+                refItem = Query(type, delegate (dynamic s)
                 {
                     var childTypePorps = propertyService.Properties(type.FullName);
                     foreach (var itemPrimarySet in itemPrimarySets)
@@ -1559,7 +1080,6 @@ namespace Xod.Engines.Xml
                             return false;
 
                         var primaryKeyProp = childTypePorps.FirstOrDefault(p => p.PropertyName.Equals(itemPrimarySet.Key)).Property;
-                        //PropertyInfo primaryKeyProp = type.GetProperty(itemPrimarySet.Key);
                         sValue = primaryKeyProp.GetValue(s);
                         if (sValue == null || !sValue.Equals(itemPrimaryKeyValue))
                             return false;
@@ -1617,46 +1137,18 @@ namespace Xod.Engines.Xml
                         xItem.Add(new XElement(prop.PropertyName, new XAttribute("refType", "complex"), refCode));
                 }
             }
-            //else if (prop.ReferenceType == PropertyReferenceType.Foreign && null != prop.ForeignKeys)
             else if ((prop.ReferenceType == PropertyReferenceType.Foreign || prop.ReferenceType == PropertyReferenceType.SelfForeign) && prop.ForeignKeys != null)
             {
                 Dictionary<string, object> foreignRefKeySets = ValueHelper.GetPropertyValues(type, item, prop.ForeignKeys.ToDictionary(s => s.LocalProperty, s => s.RemoteProperty));
                 value = SelectItemsByExample(prop.PropertyType, PopulateItemProperties(prop.PropertyType, foreignRefKeySets)).FirstOrDefault();
-                //value = GetReferenceByProperties(prop.PropertyType, foreignRefKeySets);
                 ReferenceMap(type, prop.PropertyType, value, prop, xItem, foreignRefKeySets);
             }
-            ////maybe: this is for object that have ForeignKey attribute for each other
-            //if (null != writeTrack && null != writeTrack.Parent)
-            //{
-            //    XElement xpe = new XElement(prop.Name, new XAttribute("refType", "reference"), writeTrack.Parent.CodePath);
-            //    foreach (var foreignKeyAtt in foreignKeyAtts)
-            //    {
-            //        PropertyInfo localProp = type.GetProperty(foreignKeyAtt.LocalProperty);
-            //        PropertyInfo remoteProp = propType.GetProperty(foreignKeyAtt.RemoteProperty);
-            //        if (null != remoteProp && null != localProp)
-            //        {
-            //            object remoteValue = remoteProp.GetValue(writeTrack.Parent.Item);
-            //            if (null != remoteValue && !remoteValue.Equals(ValueHelper.DefaultOf(remoteProp.PropertyType)))
-            //            {
-            //                localProp.SetValue(item, remoteValue);
-            //                xpe.Add(new XAttribute(remoteProp.Name, remoteValue));
-            //                var xLocalValue = xItem.Descendants(localProp.Name).FirstOrDefault();
-            //                if (null != xLocalValue)
-            //                    xLocalValue.Value = remoteValue.ToString();
-            //                else
-            //                    xItem.Add(new XElement(localProp.Name, remoteValue.ToString()));
-            //            }
-            //        }
-            //    }
-            //    xItem.Add(xpe);
-            //}
             else if (prop.ReferenceType == PropertyReferenceType.Parent && prop.ParentKeys != null && writeTrack != null)
             {
                 string relationshipName = null;
                 if (writeTrack.Parent != null && writeTrack.Parent.RootProperty != null)
                     relationshipName = writeTrack.Parent.RootProperty.PropertyName;
 
-                //child has been assigned to parent
                 if (writeTrack.Parent != null && prop.PropertyType == writeTrack.Parent.Type)
                 {
                     XElement xpe = new XElement(prop.PropertyName,
@@ -1687,18 +1179,9 @@ namespace Xod.Engines.Xml
                     }
                     xItem.Add(xpe);
                 }
-                //parent has been assign to the child
                 else
                 {
-                    //parent has been assign to the child through parentkey property value
-                    //if (value == null)
-                    //{
-                    //    Dictionary<string, object> parentRefKeySets = ValueHelper.GetPropertyValues(type, item, prop.ParentKeys.ToDictionary(s => s.LocalProperty, s => s.RemoteProperty));
-                    //    value = GetRefItem(prop.PropertyType, parentRefKeySets);
-                    //    LinkRef(type, prop.PropertyType, value, prop, xItem, parentRefKeySets);
-                    //}
-
-                    if (writeTrack.Parent == null || prop.PropertyType != writeTrack.Parent.Type) //WHY?!!
+                    if (writeTrack.Parent == null || prop.PropertyType != writeTrack.Parent.Type)
                     {
                         object childParentItem = prop.Property.GetValue(item);
                         var localToRemoteParentProps = prop.ParentKeys.ToDictionary(s => s.LocalProperty, s => s.RemoteProperty);
@@ -1707,13 +1190,11 @@ namespace Xod.Engines.Xml
                         if (childParentItem == null && remoteParentValues.Any())
                         {
                             childParentItem = SelectItemsByExample(prop.PropertyType, PopulateItemProperties(prop.PropertyType, remoteParentValues)).FirstOrDefault();
-                            //childParentItem = GetReferenceByProperties(prop.PropertyType, remoteParentValues);
                             if (childParentItem != null)
                                 prop.Property.SetValue(item, childParentItem);
                         }
                         else if (childParentItem != null && !remoteParentValues.Any())
                         {
-                            //find the mapping values from remote props and assign it to local props
                             var remoteParentProps = this.propertyService.Properties(prop.PropertyType.FullName);
                             var localParentProps = this.propertyService.Properties(type.FullName);
 
@@ -1766,7 +1247,6 @@ namespace Xod.Engines.Xml
                             else
                                 childrenProp = parentChildrenProps.FirstOrDefault();
 
-                            //get childrenpros and find the item of writeTrack.Item and identify the right prop to move to
                             writeTrack.Parent = new ReadWriteTrack()
                             {
                                 Code = string.Format("{0}.{1}",
@@ -1776,20 +1256,10 @@ namespace Xod.Engines.Xml
                                 Type = prop.PropertyType
                             };
 
-                            //update parent with this child element
                             XElement xParent = xParentRow.Row.Element(prop.PropertyType.Name);
                             var childPrimProps = GetPrimaryValues(type, item);
 
                             bool parentChanged = false;
-
-                            //if there is no RelationshipAttribute it means
-                            //only one children property of the target type
-
-                            //var childrenProp = this.propertyService.PropertyItems.FirstOrDefault(s =>
-                            //    s.Type == prop.PropertyType &&
-                            //    s.ReferenceType == PropertyReferenceType.Children &&
-                            //    s.CollectionItemType == type &&
-                            //    ((!string.IsNullOrEmpty(prop.RelationshipName) && s.RelationshipName == prop.RelationshipName) || true));
 
                             XElement childrenElement = xParent.Element(childrenProp.PropertyName);
                             if (null == childrenElement)
@@ -1803,10 +1273,8 @@ namespace Xod.Engines.Xml
                                 xParent.Add(childrenElement);
                             }
 
-                            //add this child to parent
                             if (null != childrenProp)
                             {
-                                //find if this child reference already exists in parent
                                 var xChild = childrenElement.Elements().FirstOrDefault(delegate(XElement s)
                                 {
                                     foreach (var childPrimProp in childPrimProps)
@@ -1818,7 +1286,6 @@ namespace Xod.Engines.Xml
                                     return true;
                                 });
 
-                                //create a child reference in parent if it's not exists
                                 if (null == xChild)
                                 {
                                     xChild = new XElement(type.Name, writeTrack.Code);
@@ -1831,7 +1298,6 @@ namespace Xod.Engines.Xml
 
                             if (parentChanged)
                                 this.ioService.Save(xParentRow.Page);
-                                //xParentRow.Page.Save();
                         }
                     }
 
@@ -1853,7 +1319,6 @@ namespace Xod.Engines.Xml
                                 object localValue = localProp.GetValue(item);
                                 object remoteValue = remoteProp.GetValue(writeTrack.Parent.Item);
 
-                                //check it later
                                 if (null == localValue || localValue.Equals(ValueHelper.DefaultOf(localProp.PropertyType)))
                                     break;
 
@@ -1904,8 +1369,7 @@ namespace Xod.Engines.Xml
             if (item != null)
             {
                 reference = SelectItemsByExample(prop.PropertyType, PopulateItemProperties(prop.PropertyType, refKeySets)).FirstOrDefault();
-                
-                //if the parent object has no value set for this reference proptry set the value according to the reference search result
+
                 if (reference != null && prop.Property.GetValue(item).Equals(null))
                     prop.Property.SetValue(item, reference);
             }
@@ -1955,8 +1419,6 @@ namespace Xod.Engines.Xml
 
         private bool ReservedKeyTest(Type type, object item)
         {
-            //var anyReservedKey = Query(type, FilterItemKeys(type, item), true).Any();
-
             List<object> filterItems = new List<object>();
             var keys = this.propertyService.Properties(type.FullName).Where(s => s.IsPrimaryKey || s.IsUnique);
             foreach (var key in keys)
@@ -2048,7 +1510,6 @@ namespace Xod.Engines.Xml
                 PropertyInfo remoteProp = propType.GetProperty(relationshipProp.Key);
                 if (null != remoteProp)
                 {
-                    //get primary-key value
                     object remoteKeyValue = remoteProp.GetValue(value);
                     PropertyInfo localProp = type.GetProperty(relationshipProp.Value);
                     if (null != remoteKeyValue && null != localProp)
@@ -2076,7 +1537,6 @@ namespace Xod.Engines.Xml
             if (refKeySets != null)
             {
                 refItem = SelectItemsByExample(type, PopulateItemProperties(type, refKeySets)).FirstOrDefault();
-                //refItem = GetReferenceByProperties(type, refKeySets);
                 XRow xRow = null;
                 if (refItem != null)
                 {
@@ -2096,324 +1556,13 @@ namespace Xod.Engines.Xml
                 foreach (var keyValue in keyValues)
                     xpe.Add(new XAttribute(keyValue.Key, keyValue.Value));
 
-            //foreach (var foreignKeyAtt in foreignKeyAtts)
-            //{
-            //    PropertyInfo remoteProp = prop.PropertyType.GetProperty(foreignKeyAtt.RemoteProperty);
-            //    if (null != remoteProp)
-            //    {
-            //        //get primary-key value
-            //        object remoteKeyValue = remoteProp.GetValue(value);
-            //        PropertyInfo localProp = type.GetProperty(foreignKeyAtt.LocalProperty);
-            //        if (null != remoteKeyValue && null != localProp)
-            //        {
-            //            object localKeyValue = localProp.GetValue(item);
-            //            if (remoteKeyValue != ValueHelper.DefaultOf(localProp.PropertyType) && !remoteKeyValue.Equals(localKeyValue))
-            //            {
-            //                localProp.SetValue(item, remoteKeyValue);
-            //                var xLocalValue = xItem.Descendants(localProp.Name).FirstOrDefault();
-            //                if (null != xLocalValue)
-            //                    xLocalValue.Value = remoteKeyValue.ToString();
-            //                else
-            //                    xItem.Add(new XElement(localProp.Name, remoteKeyValue.ToString()));
-            //            }
-            //        }
-            //    }
-            //}
-
             return xpe;
         }
 
-        //private bool TestAgainstXElement(Type type, object item, XElement xItem, IEnumerable<PropertyInfoItem> primaryProps)
-        //{
-        //    foreach (var prop in primaryProps)
-        //    {
-        //        object pkv = prop.Property.GetValue(item);
-        //        if (null != pkv)
-        //        {
-        //            XElement elm = XElement.Parse(BaseMarkup(xItem.Element(type.Name)));
-        //            string pkvString = pkv.ToString();
-        //            if (prop.ValuePosition != ValuePosition.Body)
-        //            {
-        //                XAttribute valueXAtt = elm.Attribute(prop.PropertyName);
-        //                if (null == valueXAtt && pkvString != valueXAtt.Value)
-        //                    return false;
-        //            }
-        //            else
-        //            {
-        //                XElement valueXElm = elm.Element(prop.PropertyName);
-        //                if (null == valueXElm || (prop.ValuePosition == ValuePosition.Body && pkvString != valueXElm.Value))
-        //                    return false;
-        //            }
-        //        }
-        //    }
-        //    return true;
-        //}
-        //private string BaseMarkup(XElement element)
-        //{
-        //    if (element == null)
-        //        return string.Empty;
-
-        //    var baseElements = element.Elements().Where(delegate(XElement s)
-        //    {
-        //        if (null != s.Attribute("refType"))
-        //            return false;
-
-        //        XAttribute collTypeAtt = s.Attribute("collType");
-        //        if (null != collTypeAtt)
-        //        {
-        //            XAttribute dataTypeAtt = s.Attribute("dataType");
-        //            var dataType = this.propertyService.RegisteredTypeByName(dataTypeAtt.Value);
-        //            var propertyTypeCategory = this.propertyService.GetPropertyTypeCategory(dataType);
-        //            return null != dataTypeAtt && (
-        //                propertyTypeCategory.HasFlag(PropertyTypeCategory.ValueTypeArray) ||
-        //                propertyTypeCategory.HasFlag(PropertyTypeCategory.ValueTypeCollection));
-        //        }
-
-        //        return true;
-        //    });
-
-        //    XElement resultElm = new XElement(element.Name, element.Attributes());
-        //    foreach (var e in baseElements)
-        //        resultElm.Add(e);
-
-        //    return resultElm.ToString();
-        //}
-        //private XElement OrderElement(XElement xElement)
-        //{
-        //    XElement result = new XElement(xElement.Name, xElement.Attributes());
-        //    var ordered = xElement.Elements().OrderBy(s => s.Name.LocalName);
-        //    foreach (var elm in ordered)
-        //    {
-        //        if (elm.HasElements)
-        //            result.Add(OrderElement(elm));
-        //        else
-        //            result.Add(elm);
-        //    }
-        //    return result;
-        //}
-
-        //private object GetReferenceByProperties(Type type, Dictionary<string, object> keyPropSets, bool lazyLoad = false)
-        //{
-        //    return SelectItemsByExample(type, PopulateItemProperties(type, keyPropSets), lazyLoad).FirstOrDefault();
-        //}
-        //private object GetRefItem(Type type, Dictionary<string, object> keyPropSets, bool lazyLoad = false)
-        //{
-        //    if (type == null || keyPropSets == null || !keyPropSets.Any())
-        //        return null;
-
-        //    object refItem = Query(type, delegate(dynamic s)
-        //    {
-        //        foreach (var refKeySet in keyPropSets)
-        //        {
-        //            object sValue = null;
-        //            PropertyInfo p = type.GetProperty(refKeySet.Key);
-        //            if (null != p)
-        //            {
-        //                sValue = p.GetValue(s);
-        //                if (sValue == null || !sValue.Equals(refKeySet.Value))
-        //                    return false;
-        //            }
-        //            else
-        //                return false;
-        //        }
-        //        return true;
-        //    }, lazyLoad).FirstOrDefault();
-
-        //    return refItem;
-        //}
-
-        ////returns Type by .xpag files reference code path
-        //private Type GetItemType(string referenceCode)
-        //{
-        //    string[] codeParts = referenceCode.Split('.');
-        //    if (codeParts.Length == 2)
-        //        return GetPageType(codeParts[0]);
-
-        //    return null;
-        //    //string[] files = System.IO.Directory.GetFiles(root, "*.xtab");
-        //    //foreach (var file in files)
-        //    //{
-        //    //    XFile tableFile = this.ioService.OpenOrCreate(file);
-        //    //    if (tableFile.Pages()
-        //    //        .Where(s => s.Attribute("file").Value == codeParts[0] + ".xpag").Any())
-        //    //    {
-        //    //        string typeString = System.IO.Path.GetFileNameWithoutExtension(file);
-        //    //        return this.propertyService.RegisteredType(typeString);
-        //    //    }
-        //    //}
-        //    //return null;
-        //}
-        ////returns the Type by .xpag file code
-        //private Type GetPageType(string xpagCode)
-        //{
-        //    string[] files = System.IO.Directory.GetFiles(root, "*.xtab");
-        //    foreach (var file in files)
-        //    {
-        //        XFile tableFile = this.ioService.OpenOrCreate(file);
-        //        if (tableFile != null && tableFile.Pages().Where(s => s.Attribute("file").Value == xpagCode + ".xpag").Any())
-        //        {
-        //            string typeString = System.IO.Path.GetFileNameWithoutExtension(file);
-        //            return this.propertyService.RegisteredType(typeString);
-        //        }
-        //    }
-        //    return null;
-        //}
-        //private string GetItemPage(Type type, string code)
-        //{
-        //    XFile tableFile = this.ioService.OpenOrCreate(type.FullName + ".xtab");
-        //    foreach (var file in tableFile.Pages().Select(s => s.Attribute("file").Value))
-        //    {
-        //        XFile pageFile = this.ioService.OpenOrCreate(file);
-        //        if (pageFile.Rows().Where(delegate(XElement s)
-        //        {
-        //            XAttribute sa = s.Attribute("code");
-        //            return null != sa && sa.Value == code;
-        //        }).Any())
-        //        {
-        //            return file.Replace(".xpag", "");
-        //        }
-        //    }
-        //    return null;
-        //}
-
-
-
-        //find XML representation of an item
-        //private XRow GetRow(Type type, object item)
-        //{
-        //    if (null == type || item == null)
-        //        return null;
-
-        //    XRow result = null;
-        //    string docFileName = string.Format("{0}\\{1}.xtab", root, type.ToString());
-        //    XFile tableFile = this.ioService.OpenOrCreate(docFileName, type, true);
-
-        //    if (tableFile != null)
-        //    {
-        //        var props = this.propertyService.Properties(type.FullName);
-        //        string itemContents = string.Empty;
-        //        Dictionary<string, object> itemKeys = null;
-        //        if (props.Where(s => s.IsPrimaryKey).Any())
-        //            itemKeys = GetPrimaryValues(type, item);
-        //        else
-        //            itemContents = BaseMarkup(OrderElement(Write(type, item, true)));
-
-        //        var pages = tableFile.Pages().Select(s => this.ioService.OpenOrCreate(s.Attribute("file").Value, typeof(TablePage)));
-        //        foreach (var page in pages)
-        //        {
-        //            XElement treeRow = null;
-        //            if (null != itemKeys)
-        //                treeRow = page.Rows().FirstOrDefault(delegate(XElement s)
-        //                {
-        //                    return itemKeys.DictionaryEqual<string, object>(GetPrimaryNodes(type, s));
-        //                });
-        //            else
-        //                treeRow = page.Rows().FirstOrDefault(delegate(XElement s)
-        //                {
-        //                    string e = BaseMarkup(OrderElement(s.Element(type.Name)));
-        //                    return e == itemContents;
-        //                });
-
-        //            if (treeRow != null)
-        //            {
-        //                result = new XRow()
-        //                {
-        //                    Table = tableFile,
-        //                    Page = page,
-        //                    Row = treeRow
-        //                };
-        //                break;
-        //            }
-        //        }
-        //    }
-
-        //    return result;
-        //}
-        //find XML the first representation of an item and its connected items
-        //private XRowTree GetTree(Type type, object item)
-        //{
-        //    if (item == null)
-        //        return null;
-
-        //    XRowTree result = null;
-        //    string docFileName = string.Format("{0}\\{1}.xtab", root, type.ToString());
-        //    XFile tableFile = this.ioService.OpenOrCreate(docFileName, type, true);
-
-        //    if (tableFile != null)
-        //    {
-        //        string itemContents = itemContents = BaseMarkup(Write(type, item, true));
-        //        var pages = tableFile.Pages().Select(s => this.ioService.OpenOrCreate(s.Attribute("file").Value, typeof(TablePage)));
-        //        var primaryProps = this.propertyService.Properties(type.FullName).Where(s => s.IsPrimaryKey).ToArray();
-        //        foreach (var page in pages)
-        //        {
-        //            XElement xItem = null;
-        //            if (primaryProps.Any())
-        //                xItem = page.Rows().FirstOrDefault(s => TestAgainstXElement(type, item, s, primaryProps));
-        //            else
-        //                xItem = page.Rows().FirstOrDefault(s => BaseMarkup(s.Element(type.Name)) == itemContents);
-
-        //            if (xItem != null)
-        //            {
-        //                result = new XRowTree()
-        //                {
-        //                    Table = tableFile,
-        //                    Page = page,
-        //                    Rows = new List<XElement> { xItem }
-        //                };
-        //                break;
-        //            }
-        //        }
-        //    }
-
-        //    return result;
-        //}
-        //find XML all representations of an item and thier connected items
-        //private List<XRowTree> GetTrees(Type type, object item)
-        //{
-        //    if (item == null)
-        //        return null;
-
-        //    List<XRowTree> result = new List<XRowTree>();
-        //    string docFileName = string.Format("{0}\\{1}.xtab", root, type.ToString());
-        //    XFile tableFile = this.ioService.OpenOrCreate(docFileName, type, true);
-
-        //    if (tableFile != null)
-        //    {
-        //        string itemContents = BaseMarkup(Write(type, item, true));
-        //        var pages = tableFile.Pages().Select(s => this.ioService.OpenOrCreate(s.Attribute("file").Value, typeof(TablePage)));
-        //        foreach (var page in pages)
-        //        {
-        //            List<XElement> xItems = null;
-        //            var primaryProps = this.propertyService.Properties(type.FullName).Where(s => s.IsPrimaryKey);
-        //            if (primaryProps.Any())
-        //                xItems = page.Rows().Where(s => TestAgainstXElement(type, item, s, primaryProps)).ToList();
-        //            else
-        //                xItems = page.Rows().Where(s => BaseMarkup(s.Element(type.Name)) == itemContents).ToList();
-
-        //            if (xItems != null)
-        //            {
-        //                result.Add(new XRowTree()
-        //                {
-        //                    Table = tableFile,
-        //                    Page = page,
-        //                    Rows = xItems
-        //                });
-        //            }
-        //        }
-        //    }
-
-        //    return result;
-        //}
-
-        //XML items comparison
-
-        #region Querying private methods
 
         private IEnumerable<object> QueryItems(Type type, Func<dynamic, bool> query, string include = null)
         {
-            //this.itemsCacheService.Clear();
             this.propertyService.LoadType(type);
-            //lazyLoad = (lazyLoad) ? true : this.LazyLoad;
             string docFileName = string.Format("{0}.xtab", type.FullName);
             XFile tableFile = this.ioService.OpenFileOrCreate(docFileName, type, true);
             if (tableFile != null)
@@ -2426,65 +1575,16 @@ namespace Xod.Engines.Xml
                         this.ioService.OpenFileOrCreate<TablePage>(s.Attribute("file").Value, true).Rows())
                     .Where(s =>
                         query(Read(type, s, include)))
-                        //query(Read(type, s, true)))
                     .Select(s =>
                         Read(type, s, include));
-                        //Read(type, s, lazyLoad));
 
                 return result;
-
-                //var result = tableFile.Pages()
-                //    .Where(delegate(XElement s)
-                //    {
-                //        string fileCode = s.Attribute("file").Value;
-                //        if (this.ioService.FileExists(fileCode))
-                //        {
-                //            List<string> rowCodes = new List<string>();
-                //            var rows = this.ioService.OpenFileOrCreate<TablePage>(fileCode, true).Rows();
-                //            if (rows.Where(delegate(XElement r)
-                //            {
-                //                string rowCode = r.Attribute("code").Value;
-                //                if (query(Read(type, r, true)))
-                //                {
-                //                    rowCodes.Add(rowCode);
-                //                    return true;
-                //                }
-                //                return false;
-                //            }).Count() > 0)
-                //            {
-                //                if (!positions.ContainsKey(fileCode))
-                //                    positions.Add(fileCode, rowCodes.ToArray());
-                //                else
-                //                    positions[fileCode] = rowCodes.ToArray();
-
-                //                return true;
-                //            }
-                //        }
-
-                //        return false;
-                //    });
-
-                //var pageRows = result.SelectMany(delegate(XElement s)
-                //{
-                //    string fileCode = s.Attribute("file").Value;
-                //    return this.ioService.OpenFileOrCreate<TablePage>(fileCode, true).Rows()
-                //        .Where(r => positions.Keys.Contains(fileCode) &&
-                //            positions[fileCode].Contains(r.Attribute("code").Value));
-                //});
-
-                //var pageRows = result.SelectMany(s => this.ioService.OpenOrCreate<TablePage>(s.Attribute("file").Value, true).Rows());
-
-                //result = pageRows.Where(r =>
-                //    query(Read(type, r, lazyLoad)));
-
-                //return result.Select(r => Read(type, r, lazyLoad));
             }
 
             return Enumerable.Empty<object>();
         }
         private IEnumerable<object> SelectItems(Type type, Func<dynamic, bool> query = null, bool backward = false, string include = null)
         {
-            //this.itemsCacheService.Clear();
             this.propertyService.LoadType(type);
             string docFileName = string.Format("{0}.xtab", type.ToString());
             XFile tableFile = this.ioService.OpenFileOrCreate(docFileName, type, true);
@@ -2518,13 +1618,11 @@ namespace Xod.Engines.Xml
             if (type == null || example == null)
                 return Enumerable.Empty<object>();
 
-            //this.itemsCacheService.Clear();
             this.propertyService.LoadType(type);
             string docFileName = string.Format("{0}.xtab", type.ToString());
             XFile tableFile = this.ioService.OpenFileOrCreate(docFileName, type, true);
             if (tableFile != null)
             {
-                //object item = example.ToType(type);
                 List<string> skipProps = new List<string>();
                 var itemProps = this.propertyService.Properties(type.FullName).Where(s => !s.IsReadOnly);
                 foreach (var itemProp in itemProps)
@@ -2532,10 +1630,6 @@ namespace Xod.Engines.Xml
                     var examplePropVal = itemProp.Property.GetValue(example);
                     if(examplePropVal == null || examplePropVal.Equals(ValueHelper.DefaultOf(itemProp.PropertyType)))
                         skipProps.Add(itemProp.PropertyName);
-                    //if (itemProp.IsRequired)
-                    //{
-                    //}
-
                 }
 
                 XElement test = null;
@@ -2565,7 +1659,6 @@ namespace Xod.Engines.Xml
             if (type == null || examples == null || !examples.Any())
                 return Enumerable.Empty<object>();
 
-            //this.itemsCacheService.Clear();
             this.propertyService.LoadType(type);
             string docFileName = string.Format("{0}.xtab", type.ToString());
             XFile tableFile = this.ioService.OpenFileOrCreate(docFileName, type, true);
@@ -2614,7 +1707,6 @@ namespace Xod.Engines.Xml
             if (type == null || example == null)
                 return null;
 
-            //this.itemsCacheService.Clear();
             this.propertyService.LoadType(type);
             string docFileName = string.Format("{0}.xtab", type.ToString());
             XFile tableFile = this.ioService.OpenFileOrCreate(docFileName, type, true);
@@ -2628,7 +1720,6 @@ namespace Xod.Engines.Xml
 
                 XRow result = new XRow();
 
-                //object item = example.ToType(type);
                 List<string> skipProps = new List<string>();
                 var itemProps = this.propertyService.Properties(type.FullName).Where(s => !s.IsReadOnly);
                 foreach (var itemProp in itemProps)
@@ -2675,7 +1766,6 @@ namespace Xod.Engines.Xml
             if (type == null || example == null)
                 return null;
 
-            //this.itemsCacheService.Clear();
             this.propertyService.LoadType(type);
             string docFileName = string.Format("{0}.xtab", type.ToString());
             XFile tableFile = this.ioService.OpenFileOrCreate(docFileName, type, true);
@@ -2692,7 +1782,6 @@ namespace Xod.Engines.Xml
                     Rows = new List<XElement>()
                 };
 
-                //object item = example.ToType(type);
                 List<string> skipProps = new List<string>();
                 var itemProps = this.propertyService.Properties(type.FullName).Where(s => !s.IsReadOnly);
                 foreach (var itemProp in itemProps)
@@ -2757,10 +1846,6 @@ namespace Xod.Engines.Xml
 
             return element;
         }
-        
-        #endregion
-
-        #region IXodEngine Implementation
 
         public event EventHandler<TriggerEventArgs> BeforeAction;
         public event EventHandler<TriggerEventArgs> AfterAction;
@@ -2841,18 +1926,6 @@ namespace Xod.Engines.Xml
 
             object old = SelectItemsByExample(type, FilterItemProperties(type, item, primProps), "*").FirstOrDefault();
 
-            //object old = Query(type, delegate(dynamic oldItem)
-            //{
-            //    foreach (var primProp in primProps)
-            //    {
-            //        object ov = primProp.Property.GetValue(oldItem);
-            //        object nv = primProp.Property.GetValue(item);
-            //        if (!ov.Equals(nv))
-            //            return false;
-            //    }
-            //    return true;
-            //}).FirstOrDefault();
-
             if (null != old)
                 return Update(type, old, item, filter);
 
@@ -2891,10 +1964,8 @@ namespace Xod.Engines.Xml
                     string itemCode = (null != rowCodeAtt && null != pageCode) ?
                         string.Format("{0}.{1}", pageCode, rowCodeAtt.Value) : "";
 
-                    //clear cached resources of this item and its related items
                     this.itemsCacheService.Clear(type, rowCodeAtt.Value);
 
-                    //Delete all applicable reference items
                     var propRefProps = this.propertyService.Properties(type.FullName).Where(s =>
                         s.ReferenceType != PropertyReferenceType.Parent &&
                         s.ReferenceType != PropertyReferenceType.SelfForeign &&
@@ -2908,10 +1979,8 @@ namespace Xod.Engines.Xml
                         if (null == refItem)
                             continue;
 
-                        //reference items
                         if (propRefProp.TypeCategory == PropertyTypeCategory.Class)
                             Delete(propRefProp.PropertyType, refItem);
-                        //collection reference items
                         Type childType = null;
                         if (propRefProp.TypeCategory == PropertyTypeCategory.Array)
                             childType = propRefProp.PropertyType.GetElementType();
@@ -2931,7 +2000,6 @@ namespace Xod.Engines.Xml
                     if (null == itemPrmVals)
                         continue;
 
-                    //Delete item reference from parents
                     var parRefProps = this.propertyService.Properties(type.FullName)
                         .Where(s => s.ReferenceType == PropertyReferenceType.Parent);
 
@@ -2956,8 +2024,8 @@ namespace Xod.Engines.Xml
 						{
 							parentPrmVals = GetPrimaryValues(type, parentValue);
 						}
-						//object parent = GetReferenceByProperties(parRefProp.PropertyType, parentPrmVals);
-						object parent = SelectItemsByExample(parRefProp.PropertyType, PopulateItemProperties(parRefProp.PropertyType, parentPrmVals), "*").FirstOrDefault();
+
+                        object parent = SelectItemsByExample(parRefProp.PropertyType, PopulateItemProperties(parRefProp.PropertyType, parentPrmVals), "*").FirstOrDefault();
                         if (parent == null)
                             continue;
 
@@ -2992,7 +2060,6 @@ namespace Xod.Engines.Xml
                         }
                     }
 
-                    //delete actual file record
                     row.Remove();
                     if (!rowTree.Page.Root().HasElements)
                     {
@@ -3012,17 +2079,7 @@ namespace Xod.Engines.Xml
                     }
                     else
                     {
-                        //Full attribute should not be updated after turning true,
-                        //it's a forward process for indexing purposes
-
-                        //if (rowTree.Page.Size() < PAGE_SIZE)
-                        //{
-                        //    XAttribute fullAtt = rowTree.Page.Root().Attribute("full");
-                        //    if (fullAtt != null)
-                        //        fullAtt.Value = "false";
-                        //}
                         this.ioService.Save(rowTree.Page);
-                        //rowTree.Page.Save();
                     }
                 }
             }
@@ -3055,24 +2112,8 @@ namespace Xod.Engines.Xml
 
             if (tableFile != null)
             {
-                //go through all pages and delete all node of this type unless
-                //it's attributed as required/parent for other types then raise
-                //an exception
-
-                //var pages = from row in tableFile.Pages() select OpenFileOrCreate(row.Value, typeof(TablePage));
-                //foreach (var page in pages)
-                //{
-                //    if (cachedFiles.Contains(page))
-                //        cachedFiles.Remove(page);
-                //    page.Delete();
-                //}
-
-                //if (cachedFiles.Contains(tableFile))
-                //    cachedFiles.Remove(tableFile);
                 this.ioService.Delete(tableFile.Path);
-                //tableFile.Delete();
 
-                //this.propertyService.UnloadType(type);
                 this.autonumberService.ClearType(type);
             }
 
@@ -3123,7 +2164,5 @@ namespace Xod.Engines.Xml
             this.propertyService = null;
             this.autonumberService = null;
         }
-
-        #endregion
     }
 }

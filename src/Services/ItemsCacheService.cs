@@ -1,8 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-
-namespace Xod.Services
+﻿namespace Xod.Services
 {
     //shared service: thread-safe for multiple databases and connections
     internal class ItemsCacheService: ICachedList<ItemCache>

@@ -1,5 +1,4 @@
-﻿using System;
-namespace Xod.Infra
+﻿namespace Xod.Infra
 {
     interface IXodSecurityService
     {
